@@ -44,16 +44,16 @@ function start_game(){
 		var remblocks = fall_blocks();
 	} while(remblocks.length > 0);
 
-/*
-	//hexmatrix[3][3] *= primes[1];
-	hexmatrix[3][4] *= primes[1];
-	hexmatrix[2][3] *= primes[1];
-	hexmatrix[3][2] *= primes[1];
-	hexmatrix[4][2] *= primes[1];
-	hexmatrix[4][3] *= primes[1];
-	//hexmatrix[4][4] *= primes[1];
-	hexmatrix[4][5] *= primes[1];
-*/
+
+	hexmatrix[8][6] *= primes[2];
+	hexmatrix[8][3] *= primes[2];
+	hexmatrix[0][1] *= primes[2];
+	hexmatrix[0][4] *= primes[2];
+	hexmatrix[4][0] *= primes[2];
+	hexmatrix[4][7] *= primes[2];
+	hexmatrix[3][3] *= primes[2];
+	hexmatrix[7][1] *= primes[2];
+
 }
 
 function cp(obj){ // deep copy
@@ -177,8 +177,13 @@ function fall_blocks(){
 
 function rotate_blocks(blocks,turn){
 	var rotated;
-	if(block_type(blocks[0])==1 && turn==3 && can_rotate_normally(blocks[0])){
-		rotated = rotate(get_circ_blocks(blocks[0]), rotate_ccw);
+	var type = block_type(blocks[0]);
+	if(type > 0 && turn==3 && can_rotate_normally(blocks[0])){
+		if(type == 1)
+			blocks = get_circ_blocks(blocks[0]);
+		else if(type == 2)
+			blocks = get_bigtri_blocks(blocks[0]);
+		rotated = rotate(blocks, rotate_ccw);
 	} else
 		rotated = rotate_tri(blocks, rotate_ccw);
 
@@ -405,8 +410,8 @@ function get_nearest(mouse_x,mouse_y){
 	return [ijlist[shortest[0]], ijlist[shortest[1]], ijlist[shortest[2]]];
 }
 
-function get_circ_blocks(block){
-	var blocks = []
+function get_circ_blocks(block){ // special block 1
+	var blocks = [];
 	if(block.j%2==0){
 		blocks.push({i: block.i, j: block.j+1});
 		blocks.push({i: block.i-1, j: block.j+1});
@@ -425,15 +430,39 @@ function get_circ_blocks(block){
 	return blocks;
 }
 
+function get_bigtri_blocks(block){
+	var blocks = [];
+	if(block.j%2==0){
+		blocks.push({i: block.i-1, j: block.j});
+		blocks.push({i: block.i, j: block.j-1});
+		blocks.push({i: block.i, j: block.j+1});
+	} else {
+		blocks.push({i: block.i-1, j: block.j});
+		blocks.push({i: block.i+1, j: block.j-1});
+		blocks.push({i: block.i+1, j: block.j+1});
+	}
+	return blocks;
+}
+
 function can_rotate_normally(block){
-	if(block_type(block)>0 && block.i < matrix_h-1 && block.i > 0 && block.j > 0 && block.j < matrix_w-1)
-		return true;
+	var type = block_type(block);
+	if(type == 1)
+		return block.i < matrix_h-1 && block.i > 0 && block.j > 0 && block.j < matrix_w-1;
+	else if(type == 2){
+		return block.i < matrix_h-1+(block.j%2==0) && block.i > 0 && block.j > 0 && block.j < matrix_w-1;
+	}
+
 	return false;
 }
 
 function highlight_hex(blocks){
-	if(hexmatrix[blocks[0].i][blocks[0].j] > 9 && can_rotate_normally(blocks[0])){
-		blocks = get_circ_blocks(blocks[0]);
+	//if(hexmatrix[blocks[0].i][blocks[0].j] > 9 && can_rotate_normally(blocks[0])){
+	var type = block_type(blocks[0]);
+	if(type > 0 && can_rotate_normally(blocks[0])){
+		if(type == 1)
+			blocks = get_circ_blocks(blocks[0]);
+		else if(type == 2)
+			blocks = get_bigtri_blocks(blocks[0]);
 	}
 
 	var mntop = 0;
@@ -458,7 +487,7 @@ function highlight_hex(blocks){
 	
 
 	//document.title = blocks.length;
-	for(b=blocks.length;b<6;b++){
+	for(b=blocks.length;b<6;b++){ // hiding highlighting blocks not in use
 		hl_dom = document.getElementById("hl_"+b);
 		hl_dom.style.left = "0px";
 		hl_dom.style.top = "450px";
