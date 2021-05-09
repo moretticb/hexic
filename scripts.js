@@ -39,14 +39,20 @@ function start_game(){
 		}
 	}
 
+	do {
+		hexmatrix = detect_combs(hexmatrix).matrix;
+		var remblocks = fall_blocks();
+	} while(remblocks.length > 0);
+
 /*
-	hexmatrix[3][3] *= primes[1];
-	hexmatrix[3][4] = 1;
-	hexmatrix[2][3] = 1;
-	hexmatrix[3][2] = 1;
-	hexmatrix[4][2] = 1;
-	hexmatrix[4][3] = 1;
-	hexmatrix[4][4] = 1;
+	//hexmatrix[3][3] *= primes[1];
+	hexmatrix[3][4] *= primes[1];
+	hexmatrix[2][3] *= primes[1];
+	hexmatrix[3][2] *= primes[1];
+	hexmatrix[4][2] *= primes[1];
+	hexmatrix[4][3] *= primes[1];
+	//hexmatrix[4][4] *= primes[1];
+	hexmatrix[4][5] *= primes[1];
 */
 }
 
@@ -134,8 +140,7 @@ function fall_blocks(){
 
 	for(var j=0;j<matrix_w;j++){
 		var tofill = 0;
-		//cum blocks to create instead of random block
-		var cb = get_cum_blocks(j);
+		var cb = get_cum_blocks(j); //cum blocks to create instead of random block
 		for(var i=matrix_h-1;i>=0;i--){
 			if(hexmatrix[i][j] < 0){
 				if(tofill==0){
@@ -144,7 +149,7 @@ function fall_blocks(){
 							hexmatrix[i][j] = hexmatrix[h][j];
 							hexmatrix[h][j] *= -1;
 
-							blocks.push({i: h, new_i: i});
+							blocks.push({i: h, j: j, new_i: i});
 
 							i--;
 						} else {
@@ -154,13 +159,13 @@ function fall_blocks(){
 					i++;
 				} else {
 					var newtype = 0;
-					if(cb["c1"] > 0){
+					if(cb["c1"] > 0){ // implement more types of special blocks here
 						newtype = 1;
 						cb["c1"]--;
 					}
 
 					hexmatrix[i][j] = create_random_block()*primes[newtype];
-					blocks.push({i: -1, new_i: i});
+					blocks.push({i: -1, j: j, new_i: i});
 
 					tofill--;
 				}
@@ -170,18 +175,21 @@ function fall_blocks(){
 	return blocks;
 }
 
-function rotate_blocks(blocks){
-	if(block_type(blocks[0])==1 && can_rotate_normally(blocks[0]))
-		realloc_blocks(rotate(get_circ_blocks(blocks[0]), rotate_ccw));
-	else
-		realloc_blocks(rotate_tri(blocks, rotate_ccw));
+function rotate_blocks(blocks,turn){
+	var rotated;
+	if(block_type(blocks[0])==1 && turn==3 && can_rotate_normally(blocks[0])){
+		rotated = rotate(get_circ_blocks(blocks[0]), rotate_ccw);
+	} else
+		rotated = rotate_tri(blocks, rotate_ccw);
+
+	realloc_blocks(rotated);
+	return rotated;
 }
 
 function realloc_blocks(blocks){
 	for(var b=0;b<blocks.length;b++){
 		hexmatrix[blocks[b].new_i][blocks[b].new_j] = blocks[b].value;
 	}
-	redraw_matrix();
 }
 
 function rotate(blocks, ccw){
@@ -257,15 +265,26 @@ function detect_circ_combs(matrix){
 		for(var i=1;i<matrix_h-1;i++){
 			var blocks = get_circ_blocks({i: i, j: j});
 			if(
-			Math.abs(matrix[blocks[0].i][blocks[0].j]) == Math.abs(matrix[blocks[1].i][blocks[1].j]) &&
-			Math.abs(matrix[blocks[0].i][blocks[0].j]) == Math.abs(matrix[blocks[2].i][blocks[2].j]) &&
-			Math.abs(matrix[blocks[0].i][blocks[0].j]) == Math.abs(matrix[blocks[3].i][blocks[3].j]) &&
-			Math.abs(matrix[blocks[0].i][blocks[0].j]) == Math.abs(matrix[blocks[4].i][blocks[4].j]) &&
-			Math.abs(matrix[blocks[0].i][blocks[0].j]) == Math.abs(matrix[blocks[5].i][blocks[5].j])
+			( // normal blocks
+				Math.abs(matrix[blocks[0].i][blocks[0].j]) == Math.abs(matrix[blocks[1].i][blocks[1].j]) &&
+				Math.abs(matrix[blocks[0].i][blocks[0].j]) == Math.abs(matrix[blocks[2].i][blocks[2].j]) &&
+				Math.abs(matrix[blocks[0].i][blocks[0].j]) == Math.abs(matrix[blocks[3].i][blocks[3].j]) &&
+				Math.abs(matrix[blocks[0].i][blocks[0].j]) == Math.abs(matrix[blocks[4].i][blocks[4].j]) &&
+				Math.abs(matrix[blocks[0].i][blocks[0].j]) == Math.abs(matrix[blocks[5].i][blocks[5].j])
+			)
+			||
+			( // special blocks
+				block_type({i: blocks[0].i, j: blocks[0].j}) > 0 && 
+				block_type({i: blocks[0].i, j: blocks[0].j}) == block_type({i: blocks[1].i, j: blocks[1].j}) &&
+				block_type({i: blocks[0].i, j: blocks[0].j}) == block_type({i: blocks[2].i, j: blocks[2].j}) &&
+				block_type({i: blocks[0].i, j: blocks[0].j}) == block_type({i: blocks[3].i, j: blocks[3].j}) &&
+				block_type({i: blocks[0].i, j: blocks[0].j}) == block_type({i: blocks[4].i, j: blocks[4].j}) &&
+				block_type({i: blocks[0].i, j: blocks[0].j}) == block_type({i: blocks[5].i, j: blocks[5].j}) 
+			)
 			){
 				for(var b=0;b<blocks.length;b++)
 					matrix[blocks[b].i][blocks[b].j] = -Math.abs(matrix[blocks[b].i][blocks[b].j]);
-				matrix[i][j] = matrix[i][j]*primes[1]; //transform into block of type 1
+				matrix[i][j] = matrix[i][j]*primes[block_type({i: blocks[0].i, j: blocks[0].j})+1]; // upgrading block type
 				res.combs++;
 			}
 		}
@@ -283,7 +302,11 @@ function detect_tri_combs(matrix){
 		for(var i=0;i<matrix_h-1;i++){
 			if(j%2==0){
 				// triangle pointing to the right
-				if(j<matrix_w && Math.abs(matrix[i][j]) == Math.abs(matrix[i+1][j]) && Math.abs(matrix[i][j]) == Math.abs(matrix[i][j+1])){
+				if(j<matrix_w &&
+					(Math.abs(matrix[i][j]) == Math.abs(matrix[i+1][j]) && Math.abs(matrix[i][j]) == Math.abs(matrix[i][j+1])) //normal blocks
+					||
+					(block_type({i:i, j:j}) >= 1 && block_type({i:i, j:j}) == block_type({i:i+1, j:j}) && block_type({i:i, j:j}) == block_type({i:i, j:j+1})) // special blocks
+				){
 					matrix[i][j] = -Math.abs(matrix[i][j])
 					matrix[i+1][j] = -Math.abs(matrix[i+1][j])
 					matrix[i][j+1] = -Math.abs(matrix[i][j+1])
@@ -291,7 +314,11 @@ function detect_tri_combs(matrix){
 				}
 
 				// triangle pointing to the left
-				if(j>0 && Math.abs(matrix[i][j]) == Math.abs(matrix[i+1][j]) && Math.abs(matrix[i][j]) == Math.abs(matrix[i][j-1])){
+				if(j>0 &&
+					(Math.abs(matrix[i][j]) == Math.abs(matrix[i+1][j]) && Math.abs(matrix[i][j]) == Math.abs(matrix[i][j-1])) // normal blocks
+					||
+					(block_type({i:i, j:j}) >= 1 && block_type({i:i, j:j}) == block_type({i:i+1, j:j}) && block_type({i:i, j:j}) == block_type({i:i, j:j-1})) // special blocks
+				){
 					matrix[i][j] = -Math.abs(matrix[i][j])
 					matrix[i+1][j] = -Math.abs(matrix[i+1][j])
 					matrix[i][j-1] = -Math.abs(matrix[i][j-1])
@@ -299,7 +326,11 @@ function detect_tri_combs(matrix){
 				}
 			} else {
 				// triangle pointing to the right
-				if(j<matrix_w && Math.abs(matrix[i][j]) == Math.abs(matrix[i+1][j]) && Math.abs(matrix[i][j]) == Math.abs(matrix[i+1][j+1])){
+				if(j<matrix_w &&
+					(Math.abs(matrix[i][j]) == Math.abs(matrix[i+1][j]) && Math.abs(matrix[i][j]) == Math.abs(matrix[i+1][j+1])) // normal blocks
+					||
+					(block_type({i:i, j:j}) >= 1 && block_type({i:i, j:j}) == block_type({i:i+1, j:j}) && block_type({i:i, j:j}) == block_type({i:i+1, j:j+1})) // special blocks
+				){
 					matrix[i][j] = -Math.abs(matrix[i][j])
 					matrix[i+1][j] = -Math.abs(matrix[i+1][j])
 					matrix[i+1][j+1] = -Math.abs(matrix[i+1][j+1])
@@ -307,7 +338,11 @@ function detect_tri_combs(matrix){
 				}
 
 				// triangle pointing to the left
-				if(j>0 && Math.abs(matrix[i][j]) == Math.abs(matrix[i+1][j]) && Math.abs(matrix[i][j]) == Math.abs(matrix[i+1][j-1])){
+				if(j>0 &&
+					(Math.abs(matrix[i][j]) == Math.abs(matrix[i+1][j]) && Math.abs(matrix[i][j]) == Math.abs(matrix[i+1][j-1])) // normal blocks
+					||
+					(block_type({i:i, j:j}) >= 1 && block_type({i:i, j:j}) == block_type({i:i+1, j:j}) && block_type({i:i, j:j}) == block_type({i:i+1, j:j-1})) // special blocks
+				){
 					matrix[i][j] = -Math.abs(matrix[i][j])
 					matrix[i+1][j] = -Math.abs(matrix[i+1][j])
 					matrix[i+1][j-1] = -Math.abs(matrix[i+1][j-1])
@@ -431,11 +466,43 @@ function highlight_hex(blocks){
 	}
 }
 
+function draw_block(block, isnew){
+	var type = block_type(block);
+	var markup = "";
+	var styles=[];
+
+	if(type >= 1){
+		//styles.push("background: orange");
+		styles.push("background-image: url('sp_"+type+".png')");
+	} else if(type == 0){
+		styles.push("background-image: url('hexb_"+colors[hexmatrix[block.i][block.j]]+".png')");
+	} else {
+		styles.push("background: none");
+	}
+
+	styles.push("position: absolute");
+	if(isnew)
+		styles.push("top: "+get_hex_pos(-2,block.j).top);
+	else
+		styles.push("top: "+get_hex_pos(block.i,block.j).top);
+	styles.push("left: "+get_hex_pos(block.i,block.j).left);
+	
+	markup += '<div id="'+(isnew?"new":"")+'hex_'+block.i+'_'+block.j+'" class="hexblock" style="'+styles.join("; ")+'"></div>';
+	return markup;
+}
+
+function markup2dom(markup){
+	var elem = document.createElement("div");
+	elem.innerHTML = markup;
+
+	return elem.firstChild;
+}
+
 function draw_matrix(){
 	var markup = "";
 	for(var i=0;i<matrix_h;i++){
 		for(j=0;j<matrix_w;j++){
-			var styles=[];
+			/*var styles=[];
 			//styles.push("background-color: "+colors[hexmatrix[i][j]]);
 
 			var blk = block_type({i: i, j: j});
@@ -454,6 +521,9 @@ function draw_matrix(){
 			styles.push("left: "+get_hex_pos(i,j).left);
 			
 			markup += '<div id="hex_'+i+'_'+j+'" class="hexblock" style="'+styles.join("; ")+'"></div>';
+			*/
+			var block = {i: i, j: j};
+			markup += draw_block(block, false);
 		}
 	}
 
@@ -477,21 +547,142 @@ function redraw_matrix(){
 	document.getElementById("debug").innerHTML = debugstr;
 }
 
+function anim_rot_blocks(blocks, turn){
+	var anim_time = 0.3; //seconds
+	var omf = null;
+
+	for(var b=0;b<blocks.length;b++){
+		var blkdom = document.getElementById("hex_"+blocks[b].i+"_"+blocks[b].j);
+		var newpos = get_hex_pos(blocks[b].new_i,blocks[b].new_j);
+
+		tw = new Tween(
+			blkdom.id,
+			"top",
+			Quartic.prototype.easeInOut,
+			blkdom.offsetTop,
+			newpos.top,
+			anim_time,
+			true
+		);
+		tw = new Tween(
+			blkdom.id,
+			"left",
+			Quartic.prototype.easeInOut,
+			blkdom.offsetLeft,
+			newpos.left,
+			anim_time,
+			true
+		);
+
+		if(omf==null){
+			omf = function(){
+				redraw_matrix();
+				if(!keep_falling() && turn < 3 && blocks.length==3){
+					var rotated = rotate_blocks(blocks, turn);
+					anim_rot_blocks(rotated,turn+1,keep_falling);
+				}
+			}
+			tw.onMotionFinished = omf;
+		}
+	}
+}
+
+function anim_fade_blocks(what_next){
+	var omf = null;
+	for(var j=0;j<matrix_w;j++){
+		for(var i=0;i<matrix_h;i++){
+
+			if(hexmatrix[i][j] > 0)
+				continue;
+
+			var blkdom = document.getElementById("hex_"+i+"_"+j);
+			tw = new Tween(
+				blkdom.id,
+				"opacity",
+				Quartic.prototype.easeInOut,
+				1,
+				0,
+				0.5,
+				true
+			);
+			if(omf==null){
+				omf = what_next;
+				tw.onMotionFinished = omf;
+			}
+		}
+	}
+	
+}
+
+function anim_blocks(blocks){
+	var newblocks = [];
+	for(var b=0;b<blocks.length;b++){
+		var blk = blocks[b];
+		if(blk.i < 0){
+			newblocks.push(blk);
+			continue;
+		}
+		var blkdom = document.getElementById("hex_"+blk.i+"_"+blk.j);
+		tw = new Tween(
+			blkdom.id,
+			"top",
+			Quartic.prototype.easeInOut,
+			blkdom.offsetTop,
+			get_hex_pos(blk.new_i,blk.j).top,
+			0.5,
+			true
+		);
+	}
+	
+	var omf = null;
+	for(var b=0;b<newblocks.length;b++){
+		var blk = newblocks[b];
+		var blockarea = document.getElementById("blockarea");
+		var newdomblk = markup2dom(draw_block({i: blk.new_i, j: blk.j}, true));
+		var thepos = get_hex_pos(blk.new_i,blk.j);
+
+		blockarea.appendChild(newdomblk);
+
+		new Tween(
+			newdomblk.id,
+			"top",
+			Quartic.prototype.easeInOut,
+			get_hex_pos(-2,j).top,
+			thepos.top,
+			0.5,
+			true
+		);
+		if(omf==null){
+			omf = function(){
+				redraw_matrix();
+				keep_falling();
+			}
+			tw.onMotionFinished = omf;
+		}
+	}
+}
+
+function keep_falling(){
+	var res = detect_combs(hexmatrix);
+	hexmatrix = res.matrix;
+
+	if(res.comb_circ + res.comb_tri > 0){
+		anim_fade_blocks(function(){
+			anim_blocks(fall_blocks());
+		});
+		return true;
+	}
+	return false;
+}
+
 function rotate_and_update(evt){
 	var hascomb = false;
 	var res = {};
 	var nearest_blocks = get_nearest(evt.clientX, evt.clientY);
-	var turns = block_type(nearest_blocks[0])==0 ? 3 : 1;
+	var turn = block_type(nearest_blocks[0])==0 ? 1 : can_rotate_normally(nearest_blocks[0]) ? 3 : 1;
 
-	for(var t=0;t<turns && !hascomb; t++){
-		rotate_blocks(nearest_blocks);
-		res = detect_combs(hexmatrix);
-		hascomb = (res.comb_circ + res.comb_tri) > 0;
-		console.log(t+" "+res.comb_circ+" circles and "+res.comb_tri+"triangles");
-	}
-
-	hexmatrix = res.matrix;
-	redraw_matrix();
+	rotated = rotate_blocks(nearest_blocks,turn);
+	anim_rot_blocks(rotated,turn,keep_falling);
 }
 
 window.onload = function(){
