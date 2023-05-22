@@ -45,14 +45,14 @@ function start_game(){
 	} while(remblocks.length > 0);
 
 
-	hexmatrix[8][6] *= primes[2];
-	hexmatrix[8][3] *= primes[2];
-	hexmatrix[0][1] *= primes[2];
-	hexmatrix[0][4] *= primes[2];
-	hexmatrix[4][0] *= primes[2];
-	hexmatrix[4][7] *= primes[2];
-	hexmatrix[3][3] *= primes[2];
-	hexmatrix[7][1] *= primes[2];
+	//hexmatrix[8][6] *= primes[2];
+	//hexmatrix[8][3] *= primes[2];
+	//hexmatrix[0][1] *= primes[2];
+	//hexmatrix[0][4] *= primes[2];
+	//hexmatrix[4][0] *= primes[2];
+	//hexmatrix[4][7] *= primes[2];
+	//hexmatrix[3][3] *= primes[2];
+	//hexmatrix[7][1] *= primes[2];
 
 }
 
